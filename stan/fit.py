@@ -127,6 +127,24 @@ class Fit(collections.abc.Mapping):
         df.index.name, df.columns.name = "draws", "parameters"
         return df
 
+    def to_arrow(self):
+        """Return view of draws as an Arrow Table.
+
+        If pyarrow are not installed, a `RuntimeError` will be raised.
+
+        Returns:
+            pyarrow.Table: Table with `num_draws` rows and
+                `num_flat_params` columns.
+        """
+        try:
+            import pyarrow as pa
+        except ImportError:
+            raise RuntimeError("The `to_arrow` method requires the Python package `pyarrow`.")
+        columns = self.sample_and_sampler_param_names + self.constrained_param_names
+        assert len(self._draws) == len(columns)
+        table = pa.Table.from_arrays(self._draws.reshape(len(columns), -1), names=columns)
+        return table
+
     def __getitem__(self, param):
         """Returns array with shape (stan_dimensions, num_chains * num_samples)"""
         assert param.endswith("__") or param in self.param_names, param
